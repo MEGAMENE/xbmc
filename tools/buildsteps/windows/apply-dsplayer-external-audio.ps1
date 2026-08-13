@@ -126,4 +126,22 @@ Replace-Once $player `
 ('    if (CStreamsManager::Get()) CStreamsManager::Get()->SelectBestAudio();' + "`r`n" + '    if (CStreamsManager::Get()) CStreamsManager::Get()->LoadExternalAudio();') `
 'DSPlayer.cpp LoadExternalAudio call'
 
+# The branch's packaged curl is an imported target, not an ALIASED_TARGET.
+# The historical FindCurl.cmake assumes the target is always an alias, producing
+# _CURL_ALIASTARGET-NOTFOUND and then failing to extract CURL_LIBRARY.
+$curl = 'cmake/modules/FindCurl.cmake'
+$curlText = Get-Content -Raw $curl
+$old = '      get_target_property(_CURL_ALIASTARGET CURL::libcurl ALIASED_TARGET)'
+$new = @'
+      get_target_property(_CURL_ALIASTARGET CURL::libcurl ALIASED_TARGET)
+      if(NOT _CURL_ALIASTARGET)
+        set(_CURL_ALIASTARGET CURL::libcurl)
+      endif()
+'@
+if (-not $curlText.Contains('set(_CURL_ALIASTARGET CURL::libcurl)')) {
+    if (-not $curlText.Contains($old)) { throw 'FindCurl alias anchor not found' }
+    $curlText = $curlText.Replace($old, $new.TrimEnd("`r", "`n"))
+    Set-Content -Path $curl -Value $curlText -Encoding UTF8 -NoNewline
+}
+
 Write-Host 'DSPlayer external-audio source changes applied.'
