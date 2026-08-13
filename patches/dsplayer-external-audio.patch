@@ -1,0 +1,139 @@
+diff --git a/xbmc/cores/DSPlayer/StreamsManager.h b/xbmc/cores/DSPlayer/StreamsManager.h
+--- a/xbmc/cores/DSPlayer/StreamsManager.h
++++ b/xbmc/cores/DSPlayer/StreamsManager.h
+@@ -66,6 +66,7 @@ public:
+   std::string              m_strCodecName;
+   uint32_t                m_iBitRate; ///< Audio bitrate
+   uint32_t                m_iSampleRate; ///< Audio samplerate
++  bool                    m_external = false; ///< External audio sidecar
+ };
+@@ -235,6 +236,8 @@ public:
+   /// Initialize streams from the current media file
+   void LoadStreams();
+ 
++  /// Discover and add Kodi external audio files after the DirectShow graph is complete
++  void LoadExternalAudio();
++
+   /// @return Current video width
+   int GetPictureWidth();
+*** Update File: xbmc/cores/DSPlayer/StreamsManager.cpp
+@@ -58,7 +58,7 @@ CDSStreamDetail::CDSStreamDetail()
+ CDSStreamDetailAudio::CDSStreamDetailAudio()
+-  : m_strCodecName(""), m_iBitRate(0), m_iSampleRate(0)
++  : m_strCodecName(""), m_iBitRate(0), m_iSampleRate(0), m_external(false)
+ {
+ }
+@@ -111,7 +111,8 @@ void CStreamsManager::SetAudioStream(int iStream)
+   if (disableIndex == enableIndex
+     || !m_audioStreams[disableIndex]->connected
+     || m_audioStreams[enableIndex]->connected)
+     return;
+@@ -120,7 +121,8 @@ void CStreamsManager::SetAudioStream(int iStream)
+   m_readyEvent.Reset();
+   XbmcThreads::CAutoSetEvent event(&m_readyEvent);
+ 
+-  if (m_pIAMStreamSelect)
++  if (m_pIAMStreamSelect && !m_audioStreams[disableIndex]->m_external
++      && !m_audioStreams[enableIndex]->m_external)
+   {
+@@ -628,6 +630,62 @@ void CStreamsManager::LoadStreams()
+   CMediaSettings::GetInstance().GetCurrentVideoSettings().m_SubtitleCached = true;
+   SubtitleManager->SelectBestSubtitle();
+ 
+   SubtitleManager->SetSubtitleVisible(CMediaSettings::GetInstance().GetCurrentVideoSettings().m_SubtitleOn);
+ }
++
++void CStreamsManager::LoadExternalAudio()
++{
++  if (!m_init || m_audioStreams.empty() || !m_pGraphBuilder)
++    return;
++
++  std::vector<std::string> audioFiles;
++  CUtil::ScanForExternalAudio(g_application.CurrentFile(), audioFiles);
++
++  if (audioFiles.empty())
++    return;
++
++  for (const auto& audioPath : audioFiles)
++  {
++    std::string sourcePath = CDSFile::SmbToUncPath(audioPath);
++    if (StringUtils::StartsWithNoCase(sourcePath, "special://"))
++      sourcePath = CSpecialProtocol::TranslatePath(sourcePath);
++
++    std::wstring sourcePathW;
++    g_charsetConverter.utf8ToW(sourcePath, sourcePathW);
++
++    Com::SComPtr<IBaseFilter> sourceFilter;
++    HRESULT hr = m_pGraphBuilder->AddSourceFilter(sourcePathW.c_str(), L"DSPlayer External Audio", &sourceFilter);
++    if (FAILED(hr) || !sourceFilter)
++    {
++      CLog::Log(LOGWARNING, "{} Failed to add external audio source '{}' (0x{:08X})",
++                __FUNCTION__, audioPath.c_str(), static_cast<unsigned>(hr));
++      continue;
++    }
++
++    Com::SComPtr<IPin> audioPin;
++    AM_MEDIA_TYPE* audioMediaType = nullptr;
++
++    BeginEnumPins(sourceFilter, pEP, pPin)
++    {
++      PIN_DIRECTION direction;
++      if (FAILED(pPin->QueryDirection(&direction)) || direction != PINDIR_OUTPUT)
++        continue;
++
++      BeginEnumMediaTypes(pPin, pET, pMediaType)
++      {
++        if (pMediaType->majortype == MEDIATYPE_Audio)
++        {
++          audioPin = pPin;
++          audioMediaType = CreateMediaType(pMediaType);
++          break;
++        }
++      }
++      EndEnumMediaTypes(pMediaType)
++
++      if (audioPin)
++        break;
++    }
++    EndEnumPins
++
++    if (!audioPin || !audioMediaType)
++    {
++      CLog::Log(LOGWARNING, "{} No audio output found in external file '{}'",
++                __FUNCTION__, audioPath.c_str());
++      m_pGraphBuilder->RemoveFilter(sourceFilter);
++      continue;
++    }
++
++    auto* external = new CDSStreamDetailAudio();
++    MediaTypeToStreamDetail(audioMediaType, *external);
++    DeleteMediaType(audioMediaType);
++
++    external->pObj = audioPin;
++    external->pUnk = nullptr;
++    external->flags = 0;
++    external->connected = false;
++    external->m_external = true;
++    external->displayname = StringUtils::Format("External: {}", URIUtils::GetFileName(audioPath));
++
++    const int index = static_cast<int>(m_audioStreams.size());
++    m_audioStreams.push_back(external);
++
++    CLog::Log(LOGINFO, "{} External audio stream found: {}", __FUNCTION__, audioPath.c_str());
++
++    // Select the first discovered external track. SetAudioStream() reuses the
++    // existing audio decoder/renderer and handles disconnect/reconnect.
++    if (index == static_cast<int>(m_audioStreams.size()) - 1)
++      SetAudioStream(index);
++  }
++}
+*** Update File: xbmc/cores/DSPlayer/DSPlayer.cpp
+@@ -770,6 +770,8 @@ void CDSPlayer::Process()
+     // Select Audio Stream, Delay
+     if (CStreamsManager::Get()) CStreamsManager::Get()->SelectBestAudio();
++    // Add sidecar audio after the graph has been fully rendered so the existing
++    // LAV Audio Decoder and audio renderer can be reused.
++    if (CStreamsManager::Get()) CStreamsManager::Get()->LoadExternalAudio();
+     SetAVDelay(CMediaSettings::GetInstance().GetDefaultVideoSettings().m_AudioDelay);
+ 
+     // Select Subtitle Stream, Delay, On/Off
