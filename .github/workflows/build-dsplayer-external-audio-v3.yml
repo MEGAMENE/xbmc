@@ -23,7 +23,7 @@ jobs:
 
       - name: Download Kodi Windows build dependencies
         shell: cmd
-        run: tools\buildsteps\windows\download-dependencies.bat x64 x64
+        run: tools\buildsteps\windows\download-dependencies.bat x64 win32
 
       - name: Configure
         shell: cmd
