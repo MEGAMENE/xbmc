@@ -16,19 +16,17 @@ diff --git a/xbmc/cores/DSPlayer/StreamsManager.h b/xbmc/cores/DSPlayer/StreamsM
 +
    /// @return Current video width
    int GetPictureWidth();
-*** Update File: xbmc/cores/DSPlayer/StreamsManager.cpp
+ 
+ diff --git a/xbmc/cores/DSPlayer/StreamsManager.cpp b/xbmc/cores/DSPlayer/StreamsManager.cpp
+--- a/xbmc/cores/DSPlayer/StreamsManager.cpp
++++ b/xbmc/cores/DSPlayer/StreamsManager.cpp
 @@ -58,7 +58,7 @@ CDSStreamDetail::CDSStreamDetail()
  CDSStreamDetailAudio::CDSStreamDetailAudio()
 -  : m_strCodecName(""), m_iBitRate(0), m_iSampleRate(0)
 +  : m_strCodecName(""), m_iBitRate(0), m_iSampleRate(0), m_external(false)
  {
  }
-@@ -111,7 +111,8 @@ void CStreamsManager::SetAudioStream(int iStream)
-   if (disableIndex == enableIndex
-     || !m_audioStreams[disableIndex]->connected
-     || m_audioStreams[enableIndex]->connected)
-     return;
-@@ -120,7 +121,8 @@ void CStreamsManager::SetAudioStream(int iStream)
+@@ -120,7 +120,8 @@ void CStreamsManager::SetAudioStream(int iStream)
    m_readyEvent.Reset();
    XbmcThreads::CAutoSetEvent event(&m_readyEvent);
  
@@ -36,7 +34,7 @@ diff --git a/xbmc/cores/DSPlayer/StreamsManager.h b/xbmc/cores/DSPlayer/StreamsM
 +  if (m_pIAMStreamSelect && !m_audioStreams[disableIndex]->m_external
 +      && !m_audioStreams[enableIndex]->m_external)
    {
-@@ -628,6 +630,62 @@ void CStreamsManager::LoadStreams()
+@@ -628,6 +629,62 @@ void CStreamsManager::LoadStreams()
    CMediaSettings::GetInstance().GetCurrentVideoSettings().m_SubtitleCached = true;
    SubtitleManager->SelectBestSubtitle();
  
@@ -123,12 +121,13 @@ diff --git a/xbmc/cores/DSPlayer/StreamsManager.h b/xbmc/cores/DSPlayer/StreamsM
 +
 +    // Select the first discovered external track. SetAudioStream() reuses the
 +    // existing audio decoder/renderer and handles disconnect/reconnect.
-+    if (index == static_cast<int>(m_audioStreams.size()) - 1)
-+      SetAudioStream(index);
++    SetAudioStream(index);
 +  }
 +}
-*** Update File: xbmc/cores/DSPlayer/DSPlayer.cpp
-@@ -770,6 +770,8 @@ void CDSPlayer::Process()
+ diff --git a/xbmc/cores/DSPlayer/DSPlayer.cpp b/xbmc/cores/DSPlayer/DSPlayer.cpp
+--- a/xbmc/cores/DSPlayer/DSPlayer.cpp
++++ b/xbmc/cores/DSPlayer/DSPlayer.cpp
+@@ -770,6 +770,9 @@ void CDSPlayer::Process()
      // Select Audio Stream, Delay
      if (CStreamsManager::Get()) CStreamsManager::Get()->SelectBestAudio();
 +    // Add sidecar audio after the graph has been fully rendered so the existing
