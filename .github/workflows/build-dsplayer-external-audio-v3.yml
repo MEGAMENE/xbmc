@@ -25,6 +25,33 @@ jobs:
         shell: cmd
         run: tools\buildsteps\windows\download-dependencies.bat x64 win32
 
+      - name: Initialize Visual Studio x64 environment
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath = & $vswhere -latest -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+
+          if (-not $vsPath) {
+            throw "Visual Studio installation not found"
+          }
+
+          Write-Host "Using Visual Studio: $vsPath"
+          $devCmd = Join-Path $vsPath 'Common7\Tools\VsDevCmd.bat'
+          if (-not (Test-Path $devCmd)) {
+            throw "VsDevCmd.bat not found: $devCmd"
+          }
+
+          cmd /c "`"$devCmd`" -arch=x64 -host_arch=x64 && set" |
+            ForEach-Object {
+              if ($_ -match '^([^=]+)=(.*)$') {
+                "$($matches[1])=$($matches[2])" | Out-File `
+                  -FilePath $env:GITHUB_ENV `
+                  -Append -Encoding utf8
+              }
+            }
+
       - name: Configure
         shell: cmd
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T host=x64 -DENABLE_INTERNAL_CURL=OFF -DENABLE_INTERNAL_FFMPEG=ON
