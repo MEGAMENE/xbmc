@@ -161,9 +161,12 @@ if(pkgconf_path)
 endif()
 
 include(ExternalProject)
+
+find_program(FFMPEG_BASH_EXECUTABLE NAMES bash bash.exe REQUIRED)
+
 externalproject_add(ffmpeg
                     SOURCE_DIR ${CMAKE_SOURCE_DIR}
-                    CONFIGURE_COMMAND ${ffmpeg_env} <SOURCE_DIR>/configure
+                    CONFIGURE_COMMAND ${ffmpeg_env} ${FFMPEG_BASH_EXECUTABLE} <SOURCE_DIR>/configure
                       --prefix=${CMAKE_INSTALL_PREFIX}
                       --extra-version="kodi-${FFMPEG_VER}"
                       ${ffmpeg_conf}
