@@ -149,10 +149,21 @@ if(CMAKE_GENERATOR STREQUAL Ninja)
   endif()
 endif()
 
+# ExternalProject's CONFIGURE_COMMAND is executed directly by the generator.
+# Use CMake's environment wrapper instead of shell-style assignments so the
+# configure step also works with Windows cmd.exe.
+set(ffmpeg_env ${CMAKE_COMMAND} -E env)
+if(pkgconf)
+  list(APPEND ffmpeg_env ${pkgconf})
+endif()
+if(pkgconf_path)
+  list(APPEND ffmpeg_env ${pkgconf_path})
+endif()
+
 include(ExternalProject)
 externalproject_add(ffmpeg
                     SOURCE_DIR ${CMAKE_SOURCE_DIR}
-                    CONFIGURE_COMMAND ${pkgconf} ${pkgconf_path} <SOURCE_DIR>/configure
+                    CONFIGURE_COMMAND ${ffmpeg_env} <SOURCE_DIR>/configure
                       --prefix=${CMAKE_INSTALL_PREFIX}
                       --extra-version="kodi-${FFMPEG_VER}"
                       ${ffmpeg_conf}
