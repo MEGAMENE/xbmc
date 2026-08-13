@@ -1,0 +1,52 @@
+name: Build DSPlayer external audio v3
+
+on:
+  push:
+    branches:
+      - dsplayer-external-audio
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Apply DSPlayer source changes
+        shell: pwsh
+        run: ./tools/buildsteps/windows/apply-dsplayer-external-audio.ps1
+
+      - name: Download Kodi Windows build dependencies
+        shell: cmd
+        run: tools\buildsteps\windows\download-dependencies.bat win32 win32
+
+      - name: Configure
+        shell: cmd
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T host=x64
+
+      - name: Build Kodi
+        shell: cmd
+        run: cmake --build build --config Release -- /m:2
+
+      - name: Verify executable
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'build/Release/Kodi.exe'
+          if (-not (Test-Path $exe)) {
+            Write-Error 'Kodi.exe was not produced.'
+            Get-ChildItem build/Release -ErrorAction SilentlyContinue
+            exit 1
+          }
+          Get-Item $exe | Format-List FullName,Length,LastWriteTime
+
+      - name: Upload patched Kodi executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kodi-DSPlayer-external-audio-v3
+          path: build/Release/Kodi.exe
+          if-no-files-found: error
