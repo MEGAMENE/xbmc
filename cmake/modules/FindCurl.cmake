@@ -200,7 +200,7 @@ if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
     # in case only a specific build type is actually available (eg Release found, Debug Required)
     # This is mainly targeted for windows who required different runtime libs for different
     # types, and they arent compatible
-    if(_multiconfig_generator)
+    if(_multiconfig_generator AND ENABLE_INTERNAL_CURL)
       if(NOT TARGET curl)
         buildCurl()
         set_target_properties(curl PROPERTIES EXCLUDE_FROM_ALL TRUE)
