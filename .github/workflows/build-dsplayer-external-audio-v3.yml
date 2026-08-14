@@ -78,6 +78,29 @@ jobs:
         shell: cmd
         run: cmake --build build --config Release -- /m:2
 
+      - name: Capture FFmpeg configure log on failure
+        if: failure()
+        shell: pwsh
+        run: |
+          $logs = Get-ChildItem -Path build -Recurse -Filter config.log -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match '\\ffbuild\\config\.log$' }
+          if (-not $logs) {
+            Write-Host 'No FFmpeg config.log found.'
+            exit 0
+          }
+          foreach ($log in $logs) {
+            Write-Host "=== $($log.FullName) ==="
+            Get-Content -Raw $log.FullName
+          }
+
+      - name: Upload FFmpeg configure logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-config-logs
+          path: build/**/ffbuild/config.log
+          if-no-files-found: ignore
+
       - name: Verify executable
         shell: pwsh
         run: |
