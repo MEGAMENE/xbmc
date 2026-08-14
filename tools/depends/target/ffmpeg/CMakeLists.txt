@@ -7,8 +7,12 @@ if(ENABLE_CCACHE AND CCACHE_PROGRAM)
                   "--cxx=${CCACHE_PROGRAM} ${CMAKE_CXX_COMPILER}"
                 )
 else()
-  set(ffmpeg_conf --cc=${CMAKE_C_COMPILER}
-                  --cxx=${CMAKE_CXX_COMPILER}
+  # FFmpeg's configure script is executed by Bash on Windows. Use the
+  # toolchain-provided compiler names rather than absolute paths containing
+  # spaces (e.g. "C:/Program Files/..."). The Visual Studio environment is
+  # initialized by the GitHub Actions workflow before CMake runs.
+  set(ffmpeg_conf --cc=cl
+                  --cxx=cl
                 )
 endif()
 
@@ -83,6 +87,7 @@ elseif(CORE_SYSTEM_NAME STREQUAL android)
     set(CONFIGARCH --arch=aarch64)
     list(APPEND ffmpeg_conf --cpu=cortex-a53)
   elseif(CPU MATCHES arm)
+    set(CONFIGARCH --arch=arm)
     list(APPEND ffmpeg_conf --cpu=cortex-a9)
   elseif(CPU MATCHES x86_64)
     list(APPEND ffmpeg_conf --cpu=x86_64)
