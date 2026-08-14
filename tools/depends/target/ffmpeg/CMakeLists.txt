@@ -158,6 +158,9 @@ endif()
 # Use CMake's environment wrapper instead of shell-style assignments so the
 # configure step also works with Windows cmd.exe.
 set(ffmpeg_env ${CMAKE_COMMAND} -E env)
+# Git Bash/MSYS can rewrite slash-prefixed MSVC arguments (/D..., /O2, /machine:x64,
+# etc.) as filesystem paths. Disable that conversion for FFmpeg's configure run.
+list(APPEND ffmpeg_env MSYS_NO_PATHCONV=1)
 if(pkgconf)
   list(APPEND ffmpeg_env ${pkgconf})
 endif()
