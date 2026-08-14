@@ -25,6 +25,14 @@ jobs:
         shell: cmd
         run: tools\buildsteps\windows\download-dependencies.bat x64 win32
 
+      - name: Install pkg-config for FFmpeg
+        shell: pwsh
+        run: |
+          choco install pkgconfiglite --version=0.28 -y --no-progress
+          $pkg = Get-Command pkg-config.exe -ErrorAction Stop
+          Write-Host "Using pkg-config: $($pkg.Source)"
+          & $pkg.Source --version
+
       - name: Initialize Visual Studio x64 environment
         shell: pwsh
         run: |
