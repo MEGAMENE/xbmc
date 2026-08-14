@@ -129,7 +129,8 @@ if(USE_LTO)
 endif()
 
 if(ENABLE_DAV1D)
-  list(APPEND ffmpeg_conf --enable-libdav1d)
+  list(APPEND ffmpeg_conf --enable-libdav1d
+                          --pkg-config=pkg-config)
   set(pkgconf_path "PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
 else()
   list(APPEND ffmpeg_conf --disable-libdav1d)
