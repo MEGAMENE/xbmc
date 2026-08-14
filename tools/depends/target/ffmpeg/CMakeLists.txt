@@ -39,7 +39,7 @@ list(APPEND ffmpeg_conf --disable-doc
                         --disable-sdl2
                         --disable-vulkan
                         --enable-gpl
-                        --enable-postpost
+                        --enable-postproc
                         --enable-runtime-cpudetect
                         --enable-pthreads
                         --extra-version="Kodi"
@@ -79,7 +79,7 @@ if(CORE_SYSTEM_NAME STREQUAL linux OR CORE_SYSTEM_NAME STREQUAL freebsd)
   else()
     list(APPEND ffmpeg_conf --disable-vdpau)
   endif()
-elif(CORE_SYSTEM_NAME STREQUAL android)
+elseif(CORE_SYSTEM_NAME STREQUAL android)
   list(APPEND ffmpeg_conf --target-os=android
                           --extra-libs=-liconv
                           --disable-linux-perf
@@ -88,7 +88,6 @@ elif(CORE_SYSTEM_NAME STREQUAL android)
     set(CONFIGARCH --arch=aarch64)
     list(APPEND ffmpeg_conf --cpu=cortex-a53)
   elseif(CPU MATCHES arm)
-    set(CONFIGARCH --arch=arm)
     list(APPEND ffmpeg_conf --cpu=cortex-a9)
   elseif(CPU MATCHES x86_64)
     list(APPEND ffmpeg_conf --cpu=x86_64)
