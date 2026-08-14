@@ -11,8 +11,8 @@ else()
   # toolchain-provided compiler names rather than absolute paths containing
   # spaces (e.g. "C:/Program Files/..."). The Visual Studio environment is
   # initialized by the GitHub Actions workflow before CMake runs.
-  set(ffmpeg_conf --cc=cl
-                  --cxx=cl
+  set(ffmpeg_conf --cc=cl.exe
+                  --cxx=cl.exe
                   --toolchain=msvc
                 )
 endif()
@@ -39,7 +39,7 @@ list(APPEND ffmpeg_conf --disable-doc
                         --disable-sdl2
                         --disable-vulkan
                         --enable-gpl
-                        --enable-postproc
+                        --enable-postpost
                         --enable-runtime-cpudetect
                         --enable-pthreads
                         --extra-version="Kodi"
@@ -79,7 +79,7 @@ if(CORE_SYSTEM_NAME STREQUAL linux OR CORE_SYSTEM_NAME STREQUAL freebsd)
   else()
     list(APPEND ffmpeg_conf --disable-vdpau)
   endif()
-elseif(CORE_SYSTEM_NAME STREQUAL android)
+elif(CORE_SYSTEM_NAME STREQUAL android)
   list(APPEND ffmpeg_conf --target-os=android
                           --extra-libs=-liconv
                           --disable-linux-perf
