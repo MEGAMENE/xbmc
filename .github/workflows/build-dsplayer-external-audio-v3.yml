@@ -52,6 +52,24 @@ jobs:
               }
             }
 
+      - name: Avoid Git POSIX linker shadowing MSVC linker
+        shell: pwsh
+        run: |
+          $gitLink = Join-Path $env:ProgramFiles 'Git\usr\bin\link.exe'
+          if (Test-Path $gitLink) {
+            $disabled = "$gitLink.disabled"
+            if (Test-Path $disabled) {
+              Remove-Item $disabled -Force
+            }
+            Move-Item $gitLink $disabled -Force
+            Write-Host "Disabled Git POSIX linker: $gitLink"
+          }
+
+          Write-Host 'Tool resolution after Visual Studio initialization:'
+          where.exe cl.exe
+          where.exe link.exe
+          where.exe lib.exe
+
       - name: Configure
         shell: cmd
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T host=x64 -DENABLE_INTERNAL_CURL=OFF -DENABLE_INTERNAL_FFMPEG=ON
