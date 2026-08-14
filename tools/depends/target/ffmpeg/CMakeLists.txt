@@ -13,6 +13,7 @@ else()
   # initialized by the GitHub Actions workflow before CMake runs.
   set(ffmpeg_conf --cc=cl
                   --cxx=cl
+                  --toolchain=msvc
                 )
 endif()
 
