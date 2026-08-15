@@ -131,27 +131,7 @@ endif()
 if(ENABLE_DAV1D)
   list(APPEND ffmpeg_conf --enable-libdav1d
                           --pkg-config=pkg-config)
-
-  # The Kodi Windows dav1d dependency contains the headers and import/static
-  # library but does not ship the dav1d.pc metadata expected by FFmpeg's
-  # configure script. Generate the small pkg-config file from the same
-  # installed prefix before FFmpeg is configured.
-  set(dav1d_pc_dir "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
-  file(MAKE_DIRECTORY "${dav1d_pc_dir}")
-  file(WRITE "${dav1d_pc_dir}/dav1d.pc"
-"prefix=${CMAKE_INSTALL_PREFIX}
-exec_prefix=${CMAKE_INSTALL_PREFIX}
-libdir=${CMAKE_INSTALL_PREFIX}/lib
-includedir=${CMAKE_INSTALL_PREFIX}/include
-
-Name: dav1d
-Description: Fast AV1 decoder
-Version: 1.4.1
-Libs: -L${CMAKE_INSTALL_PREFIX}/lib -ldav1d
-Cflags: -I${CMAKE_INSTALL_PREFIX}/include
-")
-
-  set(pkgconf_path "PKG_CONFIG_PATH=${dav1d_pc_dir}")
+  set(pkgconf_path "PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
 else()
   list(APPEND ffmpeg_conf --disable-libdav1d)
 endif()
@@ -175,12 +155,7 @@ if(CMAKE_GENERATOR STREQUAL Ninja)
   endif()
 endif()
 
-# ExternalProject's CONFIGURE_COMMAND is executed directly by the generator.
-# Use CMake's environment wrapper instead of shell-style assignments so the
-# configure step also works with Windows cmd.exe.
 set(ffmpeg_env ${CMAKE_COMMAND} -E env)
-# Git Bash/MSYS can rewrite slash-prefixed MSVC arguments (/D..., /O2, /machine:x64,
-# etc.) as filesystem paths. Disable that conversion for FFmpeg's configure run.
 list(APPEND ffmpeg_env MSYS_NO_PATHCONV=1)
 if(pkgconf)
   list(APPEND ffmpeg_env ${pkgconf})
@@ -190,7 +165,6 @@ if(pkgconf_path)
 endif()
 
 include(ExternalProject)
-
 find_program(FFMPEG_BASH_EXECUTABLE NAMES bash bash.exe REQUIRED)
 
 externalproject_add(ffmpeg
