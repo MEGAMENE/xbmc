@@ -7,13 +7,8 @@ if(ENABLE_CCACHE AND CCACHE_PROGRAM)
                   "--cxx=${CCACHE_PROGRAM} ${CMAKE_CXX_COMPILER}"
                 )
 else()
-  # FFmpeg's configure script is executed by Bash on Windows. Use the
-  # toolchain-provided compiler names rather than absolute paths containing
-  # spaces (e.g. "C:/Program Files/..."). The Visual Studio environment is
-  # initialized by the GitHub Actions workflow before CMake runs.
-  set(ffmpeg_conf --cc=cl.exe
-                  --cxx=cl.exe
-                  --toolchain=msvc
+  set(ffmpeg_conf --cc=${CMAKE_C_COMPILER}
+                  --cxx=${CMAKE_CXX_COMPILER}
                 )
 endif()
 
@@ -41,17 +36,9 @@ list(APPEND ffmpeg_conf --disable-doc
                         --enable-gpl
                         --enable-postproc
                         --enable-runtime-cpudetect
+                        --enable-pthreads
                         --extra-version="Kodi"
             )
-
-# FFmpeg uses native Windows threads on Windows. The old CMake file forced
-# POSIX pthreads even for MSVC, which makes configure probe for pthread/atomic
-# support that is not present in this Windows dependency environment.
-if(WIN32)
-  list(APPEND ffmpeg_conf --enable-w32threads)
-else()
-  list(APPEND ffmpeg_conf --enable-pthreads)
-endif()
 
 if(CMAKE_C_FLAGS)
   list(APPEND ffmpeg_conf --extra-cflags=${CMAKE_C_FLAGS})
@@ -136,13 +123,9 @@ if(USE_LTO)
    list(APPEND ffmpeg_conf --enable-lto)
 endif()
 
-# Kodi's Windows dependency package provides dav1d directly to Kodi, but the
-# old FFmpeg 7 configure script in this tree expects POSIX pkg-config metadata
-# that is not usable with the Windows MSVC dependency layout. Keep FFmpeg's
-# optional dav1d integration disabled on Windows; Kodi can still use its own
-# dav1d library.
-if(ENABLE_DAV1D AND NOT WIN32)
+if(ENABLE_DAV1D)
   list(APPEND ffmpeg_conf --enable-libdav1d)
+  set(pkgconf_path "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}")
 else()
   list(APPEND ffmpeg_conf --disable-libdav1d)
 endif()
@@ -166,18 +149,11 @@ if(CMAKE_GENERATOR STREQUAL Ninja)
   endif()
 endif()
 
-set(ffmpeg_env ${CMAKE_COMMAND} -E env)
-list(APPEND ffmpeg_env MSYS_NO_PATHCONV=1)
-if(pkgconf)
-  list(APPEND ffmpeg_env ${pkgconf})
-endif()
-
 include(ExternalProject)
-find_program(FFMPEG_BASH_EXECUTABLE NAMES bash bash.exe REQUIRED)
-
 externalproject_add(ffmpeg
                     SOURCE_DIR ${CMAKE_SOURCE_DIR}
-                    CONFIGURE_COMMAND ${ffmpeg_env} ${FFMPEG_BASH_EXECUTABLE} <SOURCE_DIR>/configure
+                    CONFIGURE_COMMAND bash <SOURCE_DIR>/configure
+                      --toolchain=msvc
                       --prefix=${CMAKE_INSTALL_PREFIX}
                       --extra-version="kodi-${FFMPEG_VER}"
                       ${ffmpeg_conf}
