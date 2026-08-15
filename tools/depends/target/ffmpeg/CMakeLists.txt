@@ -41,9 +41,17 @@ list(APPEND ffmpeg_conf --disable-doc
                         --enable-gpl
                         --enable-postproc
                         --enable-runtime-cpudetect
-                        --enable-pthreads
                         --extra-version="Kodi"
             )
+
+# FFmpeg uses native Windows threads on Windows. The old CMake file forced
+# POSIX pthreads even for MSVC, which makes configure probe for pthread/atomic
+# support that is not present in this Windows dependency environment.
+if(WIN32)
+  list(APPEND ffmpeg_conf --enable-w32threads)
+else()
+  list(APPEND ffmpeg_conf --enable-pthreads)
+endif()
 
 if(CMAKE_C_FLAGS)
   list(APPEND ffmpeg_conf --extra-cflags=${CMAKE_C_FLAGS})
