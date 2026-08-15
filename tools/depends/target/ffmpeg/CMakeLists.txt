@@ -131,7 +131,27 @@ endif()
 if(ENABLE_DAV1D)
   list(APPEND ffmpeg_conf --enable-libdav1d
                           --pkg-config=pkg-config)
-  set(pkgconf_path "PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
+
+  # The Kodi Windows dav1d dependency contains the headers and import/static
+  # library but does not ship the dav1d.pc metadata expected by FFmpeg's
+  # configure script. Generate the small pkg-config file from the same
+  # installed prefix before FFmpeg is configured.
+  set(dav1d_pc_dir "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
+  file(MAKE_DIRECTORY "${dav1d_pc_dir}")
+  file(WRITE "${dav1d_pc_dir}/dav1d.pc"
+"prefix=${CMAKE_INSTALL_PREFIX}
+exec_prefix=${CMAKE_INSTALL_PREFIX}
+libdir=${CMAKE_INSTALL_PREFIX}/lib
+includedir=${CMAKE_INSTALL_PREFIX}/include
+
+Name: dav1d
+Description: Fast AV1 decoder
+Version: 1.4.1
+Libs: -L${CMAKE_INSTALL_PREFIX}/lib -ldav1d
+Cflags: -I${CMAKE_INSTALL_PREFIX}/include
+")
+
+  set(pkgconf_path "PKG_CONFIG_PATH=${dav1d_pc_dir}")
 else()
   list(APPEND ffmpeg_conf --disable-libdav1d)
 endif()
