@@ -33,6 +33,30 @@ jobs:
           Write-Host "Using pkg-config: $($pkg.Source)"
           & $pkg.Source --version
 
+          $pcDir = Join-Path $PWD 'project\BuildDependencies\x64\lib\pkgconfig'
+          $pcFile = Join-Path $pcDir 'dav1d.pc'
+          New-Item -ItemType Directory -Force -Path $pcDir | Out-Null
+
+          @"
+          prefix=${PWD}\project\BuildDependencies\x64
+          exec_prefix=${prefix}
+          libdir=${prefix}/lib
+          includedir=${prefix}/include
+
+          Name: dav1d
+          Description: dav1d AV1 decoder
+          Version: 1.4.1
+          Libs: ${libdir}/libdav1d.lib
+          Cflags: -I${includedir}
+          "@ | Set-Content -Path $pcFile -Encoding ascii
+
+          Write-Host "Generated $pcFile"
+          Get-Content $pcFile
+          $env:PKG_CONFIG_PATH = $pcDir
+          & $pkg.Source --modversion dav1d
+          & $pkg.Source --cflags dav1d
+          & $pkg.Source --libs dav1d
+
       - name: Initialize Visual Studio x64 environment
         shell: pwsh
         run: |
