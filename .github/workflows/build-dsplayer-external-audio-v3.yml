@@ -25,48 +25,16 @@ jobs:
         shell: cmd
         run: tools\buildsteps\windows\download-dependencies.bat x64 win32
 
-      - name: Install pkg-config for FFmpeg
-        shell: pwsh
-        run: |
-          choco install pkgconfiglite --version=0.28 -y --no-progress
-          $pkg = Get-Command pkg-config.exe -ErrorAction Stop
-          Write-Host "Using pkg-config: $($pkg.Source)"
-          & $pkg.Source --version
-
-          $pcDir = Join-Path $PWD 'project\BuildDependencies\x64\lib\pkgconfig'
-          $pcFile = Join-Path $pcDir 'dav1d.pc'
-          New-Item -ItemType Directory -Force -Path $pcDir | Out-Null
-
-          @"
-          prefix=${PWD}\project\BuildDependencies\x64
-          exec_prefix=${prefix}
-          libdir=${prefix}/lib
-          includedir=${prefix}/include
-
-          Name: dav1d
-          Description: dav1d AV1 decoder
-          Version: 1.4.1
-          Libs: ${libdir}/libdav1d.lib
-          Cflags: -I${includedir}
-          "@ | Set-Content -Path $pcFile -Encoding ascii
-
-          Write-Host "Generated $pcFile"
-          Get-Content $pcFile
-          $env:PKG_CONFIG_PATH = $pcDir
-          & $pkg.Source --modversion dav1d
-          & $pkg.Source --cflags dav1d
-          & $pkg.Source --libs dav1d
-
-      - name: Initialize Visual Studio x64 environment
+      - name: Initialize Visual Studio x64 v142 environment
         shell: pwsh
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vsPath = & $vswhere -latest -products * `
-            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -requires Microsoft.VisualStudio.Component.VC.v142.x86.x64 `
             -property installationPath
 
           if (-not $vsPath) {
-            throw "Visual Studio installation not found"
+            throw "Visual Studio v142 toolset is not installed on the runner"
           }
 
           Write-Host "Using Visual Studio: $vsPath"
@@ -75,7 +43,7 @@ jobs:
             throw "VsDevCmd.bat not found: $devCmd"
           }
 
-          cmd /c "`"$devCmd`" -arch=x64 -host_arch=x64 && set" |
+          cmd /c "`"$devCmd`" -arch=x64 -host_arch=x64 -vcvars_ver=14.29 && set" |
             ForEach-Object {
               if ($_ -match '^([^=]+)=(.*)$') {
                 "$($matches[1])=$($matches[2])" | Out-File `
@@ -84,27 +52,14 @@ jobs:
               }
             }
 
-      - name: Avoid Git POSIX linker shadowing MSVC linker
-        shell: pwsh
-        run: |
-          $gitLink = Join-Path $env:ProgramFiles 'Git\usr\bin\link.exe'
-          if (Test-Path $gitLink) {
-            $disabled = "$gitLink.disabled"
-            if (Test-Path $disabled) {
-              Remove-Item $disabled -Force
-            }
-            Move-Item $gitLink $disabled -Force
-            Write-Host "Disabled Git POSIX linker: $gitLink"
-          }
-
-          Write-Host 'Tool resolution after Visual Studio initialization:'
+          Write-Host 'Selected compiler/linker:'
           where.exe cl.exe
           where.exe link.exe
           where.exe lib.exe
 
       - name: Configure
         shell: cmd
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T host=x64 -DENABLE_INTERNAL_CURL=OFF -DENABLE_INTERNAL_FFMPEG=ON
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T v142,host=x64 -DENABLE_INTERNAL_CURL=OFF -DENABLE_INTERNAL_FFMPEG=ON -DENABLE_DAV1D=OFF
 
       - name: Build Kodi
         shell: cmd
