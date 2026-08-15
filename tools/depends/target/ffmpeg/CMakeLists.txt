@@ -128,10 +128,13 @@ if(USE_LTO)
    list(APPEND ffmpeg_conf --enable-lto)
 endif()
 
-if(ENABLE_DAV1D)
-  list(APPEND ffmpeg_conf --enable-libdav1d
-                          --pkg-config=pkg-config)
-  set(pkgconf_path "PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
+# Kodi's Windows dependency package provides dav1d directly to Kodi, but the
+# old FFmpeg 7 configure script in this tree expects POSIX pkg-config metadata
+# that is not usable with the Windows MSVC dependency layout. Keep FFmpeg's
+# optional dav1d integration disabled on Windows; Kodi can still use its own
+# dav1d library.
+if(ENABLE_DAV1D AND NOT WIN32)
+  list(APPEND ffmpeg_conf --enable-libdav1d)
 else()
   list(APPEND ffmpeg_conf --disable-libdav1d)
 endif()
@@ -159,9 +162,6 @@ set(ffmpeg_env ${CMAKE_COMMAND} -E env)
 list(APPEND ffmpeg_env MSYS_NO_PATHCONV=1)
 if(pkgconf)
   list(APPEND ffmpeg_env ${pkgconf})
-endif()
-if(pkgconf_path)
-  list(APPEND ffmpeg_env ${pkgconf_path})
 endif()
 
 include(ExternalProject)
